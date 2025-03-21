@@ -20,7 +20,7 @@ if uploaded_file is not None:
     # Ensure 'WQI Value' exists before dropping
     if 'WQI Value' in df.columns:
         # Drop target column to use as features
-        new_X = df.drop(columns=['WQI Value'])
+        new_X = df.drop(columns=['WQI Value', 'WaterbodyName', 'Years', 'SampleDate', 'Label'])
 
         # Make predictions
         predictions = model.predict(new_X)
