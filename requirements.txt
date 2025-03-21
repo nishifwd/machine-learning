@@ -7,3 +7,4 @@ streamlit
 streamlit_drawable_canvas
 opencv-contrib-python-headless 
 tensorflow
+joblib
