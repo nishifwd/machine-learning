@@ -1,67 +1,53 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
-import matplotlib.pyplot as plt
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+from sklearn.preprocessing import MinMaxScaler
 
-# Load the trained model
-model = joblib.load("xgb_model.pkl")
+# Load the saved model
+loaded_model = joblib.load("xgb_model.pkl")
 
-# Streamlit App Title
+# Upload CSV file
 st.title("Water Quality Prediction with XGBoost")
-
-# File Upload Section
 uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
 
 if uploaded_file is not None:
-    # Load the dataset
-    df = pd.read_csv(uploaded_file)
-    
-    # Ensure 'WQI Value' exists before dropping
-    if 'WQI Value' in df.columns:
-        # Drop target column to use as features
-        new_X = df.drop(columns=['WQI Value', 'WaterbodyName', 'Years', 'SampleDate', 'Label'])
+    # Read the uploaded CSV
+    data = pd.read_csv(uploaded_file)
 
-        # Make predictions
-        predictions = model.predict(new_X)
+    # Drop unnecessary columns
+    data = data.drop(columns=['WaterbodyName', 'Years', 'SampleDate', 'Label'], errors='ignore')
 
-        # Add predictions to DataFrame
-        df['Predicted WQI'] = predictions
+    # Create a copy for processing
+    df = data.copy()
 
-        # Display Comparison Table
-        st.write("### Original vs Predicted WQI")
-        st.write(df[['WQI Value', 'Predicted WQI']])
+    # Outlier Removal using IQR
+    for col in df.select_dtypes(include=np.number):
+        percentile25 = df[col].quantile(0.25)
+        percentile75 = df[col].quantile(0.75)
+        iqr = percentile75 - percentile25
+        lower_limit = percentile25 - 1.5 * iqr
+        upper_limit = percentile75 + 1.5 * iqr
+        df = df[(df[col] >= lower_limit) & (df[col] <= upper_limit)]
 
-        # Save file for download
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Download Predictions as CSV",
-            data=csv,
-            file_name="WQI_Comparison.csv",
-            mime="text/csv",
-        )
+    # Normalize data using MinMaxScaler
+    scaler = MinMaxScaler()
+    features_to_scale = df.columns[df.columns != 'WQI Value']
+    df[features_to_scale] = scaler.fit_transform(df[features_to_scale])
 
-        # Calculate Performance Metrics
-        mse = mean_squared_error(df['WQI Value'], df['Predicted WQI'])
-        r2 = r2_score(df['WQI Value'], df['Predicted WQI'])
-        mae = mean_absolute_error(df['WQI Value'], df['Predicted WQI'])
+    # Predict WQI values
+    new_X = df.drop(columns=['WQI Value'], errors='ignore')
+    predictions = loaded_model.predict(new_X)
 
-        # Display Metrics
-        st.write("### Model Performance Metrics")
-        st.write(f"**Mean Squared Error (MSE):** {mse:.4f}")
-        st.write(f"**R-squared (R²):** {r2:.4f}")
-        st.write(f"**Mean Absolute Error (MAE):** {mae:.4f}")
+    # Add predictions to DataFrame
+    df['Predicted WQI'] = predictions
 
-        # Visualization: Actual vs Predicted WQI
-        st.write("### Actual vs Predicted WQI Graph")
-        fig, ax = plt.subplots(figsize=(10,5))
-        ax.plot(df['WQI Value'].values, label="Actual WQI", marker='o', linestyle='dashed')
-        ax.plot(df['Predicted WQI'].values, label="Predicted WQI", marker='x', linestyle='solid')
-        ax.set_xlabel("Sample Index")
-        ax.set_ylabel("WQI Value")
-        ax.set_title("Actual vs Predicted WQI")
-        ax.legend()
-        st.pyplot(fig)
+    # Display results
+    st.write("### Original vs Predicted WQI Values")
+    st.dataframe(df[['WQI Value', 'Predicted WQI']])
 
-    else:
-        st.error("The uploaded dataset must contain the column 'WQI Value'.")
+    # Option to download results
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button("Download Predictions CSV", csv, "WQI_Comparison.csv", "text/csv")
+
+    st.success("Predictions generated successfully!")
