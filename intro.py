@@ -11,7 +11,7 @@ st.title("Water Quality Prediction")
 models = {
     "XGBoost Model": "model/xgb_model.pkl",
     "Decision Tree Model": "model/dt_model.pkl",
-    "AdaBoost Model": "mode/ab_model.pkl",
+    "AdaBoost Model": "model/ab_model.pkl",
     "Multi_Layer Perceptron Model": "model/mlp_model.pkl",
     "Support Vector Machine Model": "model/svm_model.pkl",
     "Gradient Boosting Model": "model/gb_model.pkl"
