@@ -10,7 +10,7 @@ st.title("Water Quality Prediction with XGBoost")
 # List of models (Ensure these files exist in your Streamlit app directory)
 models = {
     "XGBoost Model": "xgb_model.pkl",
-    "Random Forest Model": "rf_model.pkl",
+    //"Random Forest Model": "rf_model.pkl",
     "Decision Tree Model": "dt_model.pkl",
     "AdaBoost Model": "ab_model.pkl",
     "Multi_Layer Perceptron Model": "mlp_model.pkl",
