@@ -5,16 +5,16 @@ import joblib
 from sklearn.preprocessing import MinMaxScaler
 
 # Streamlit App Title
-st.title("Water Quality Prediction with XGBoost")
+st.title("Water Quality Prediction")
 
 # List of models (Ensure these files exist in your Streamlit app directory)
 models = {
-    "XGBoost Model": "xgb_model.pkl",
-    "Decision Tree Model": "dt_model.pkl",
-    "AdaBoost Model": "ab_model.pkl",
-    "Multi_Layer Perceptron Model": "mlp_model.pkl",
-    "Support Vector Machine Model": "svm_model.pkl",
-    "Gradient Boosting Model": "gb_model.pkl"
+    "XGBoost Model": "model/xgb_model.pkl",
+    "Decision Tree Model": "model/dt_model.pkl",
+    "AdaBoost Model": "mode/ab_model.pkl",
+    "Multi_Layer Perceptron Model": "model/mlp_model.pkl",
+    "Support Vector Machine Model": "model/svm_model.pkl",
+    "Gradient Boosting Model": "model/gb_model.pkl"
 }
 
 # Dropdown for model selection
