@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
 # Streamlit App Title
 st.title("Water Quality Prediction")
@@ -59,7 +60,7 @@ if st.button("Load Dataset and Predict"):
         # Add predictions to DataFrame
         df['Predicted WQI'] = predictions
 
-                # Display results
+        # Display results
         st.write(f"### {selected_model} - Original vs Predicted WQI Values")
         st.dataframe(df[['WQI Value', 'Predicted WQI']])
 
