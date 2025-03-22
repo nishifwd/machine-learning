@@ -59,9 +59,20 @@ if st.button("Load Dataset and Predict"):
         # Add predictions to DataFrame
         df['Predicted WQI'] = predictions
 
-        # Display results
+                # Display results
         st.write(f"### {selected_model} - Original vs Predicted WQI Values")
         st.dataframe(df[['WQI Value', 'Predicted WQI']])
+
+        # Calculate Performance Metrics
+        mse = mean_squared_error(df['WQI Value'], df['Predicted WQI'])
+        r2 = r2_score(df['WQI Value'], df['Predicted WQI'])
+        mae = mean_absolute_error(df['WQI Value'], df['Predicted WQI'])
+
+        # Display Metrics
+        st.write("### Model Performance Metrics")
+        st.write(f"**Mean Squared Error (MSE):** {mse:.4f}")
+        st.write(f"**R-squared (R²):** {r2:.4f}")
+        st.write(f"**Mean Absolute Error (MAE):** {mae:.4f}")
 
         # Option to download results
         csv = df.to_csv(index=False).encode('utf-8')
