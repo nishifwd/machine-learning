@@ -21,7 +21,7 @@ models = {
 selected_model = st.selectbox("Select a Model", list(models.keys()))
 
 # GitHub raw dataset URL (Replace with your actual dataset link)
-github_url = "https://github.com/nishifwd/machine-learning/blob/main/Dataset.csv"
+github_url = "Dataset.csv"
 
 if st.button("Load Dataset and Predict"):
     try:
