@@ -193,7 +193,7 @@ def main():
     st.title("Water Quality Index (WQI) Prediction and Model Evaluation")
     
     # GitHub URL for the dataset (change this to your raw GitHub dataset URL)
-    github_url = 'Dataset.csv'
+    github_url = 'https://github.com/nishifwd/machine-learning/blob/main/Dataset.csv'
     
     # Load dataset from GitHub
     data = load_data_from_github(github_url)
