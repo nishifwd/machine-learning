@@ -362,14 +362,14 @@ if page == "Test on Loaded Data":
     X = df.drop(columns=['WQI Value'])
     y = df['WQI Value']
     
-    # Test set size slider
-    test_size = st.slider("Select test set size (%)", min_value=10, max_value=50, value=20, step=5) / 100
+    # Set test set size to 20%
+    test_size = 0.2  
     
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
     
     st.info(f"Data split into training ({len(X_train)} samples) and testing ({len(X_test)} samples) sets")
-    
+
     # Select models to test
     selected_models = st.multiselect("Select models to test (default: all)", 
                                     options=list(models.keys()),
