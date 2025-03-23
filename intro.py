@@ -254,14 +254,11 @@ st.sidebar.image("https://www.epa.gov/sites/default/files/2016-03/epa_seal_verys
 st.sidebar.title("WQI Prediction Tools")
 st.sidebar.markdown("---")
 
-# Load dataset
-dataset_path = "Dataset.csv"
-
 # Load models
 models, model_messages = load_models()
 
 if not models:
-    st.error("No models found. Make sure model files (.pkl) are in the current directory.")
+    st.error("No models found. Make sure model files (.pkl) are in the 'models' directory.")
     st.stop()
 
 # Show model loading status
@@ -273,10 +270,11 @@ with st.sidebar.expander("Model Loading Status", expanded=False):
 page = st.sidebar.radio("Select Mode", ["Test on Uploaded Data", "Predict New WQI Values"])
 
 # Main content based on page selection
-if st.button("Load Dataset and Compare Models"):
-    try:
-        # Load dataset
-        data = pd.read_csv(dataset_path)
+if page == "Test on Uploaded Data":
+    st.markdown("<h2 class='sub-header'>Test Models on Your Data</h2>", unsafe_allow_html=True)
+    
+    # Upload test data
+    uploaded_file = st.file_uploader("Upload your dataset (CSV file)", type="csv")
     
     if uploaded_file is not None:
         # Load data
@@ -320,8 +318,8 @@ if st.button("Load Dataset and Compare Models"):
         
         # Select models to test
         selected_models = st.multiselect("Select models to test (default: all)", 
-                                          options=list(models.keys()),
-                                          default=list(models.keys()))
+                                        options=list(models.keys()),
+                                        default=list(models.keys()))
         
         # Run test button
         if st.button("Run Tests", type="primary"):
@@ -421,8 +419,8 @@ else:  # Predict New WQI Values
         
         # Select models to use
         selected_models = st.multiselect("Select models for prediction (default: all)", 
-                                          options=list(models.keys()),
-                                          default=list(models.keys()))
+                                        options=list(models.keys()),
+                                        default=list(models.keys()))
         
         # Make predictions button
         if st.button("Generate Predictions", type="primary"):
@@ -469,7 +467,7 @@ else:  # Predict New WQI Values
                     # Display metrics
                     st.markdown("<h3 class='sub-header'>Performance Metrics</h3>", unsafe_allow_html=True)
                     st.dataframe(metrics_df.style.highlight_max(subset=['R²']).highlight_min(subset=['MSE', 'RMSE']), 
-                                 use_container_width=True)
+                                use_container_width=True)
                     
                     # Create visualization
                     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
@@ -494,13 +492,13 @@ else:  # Predict New WQI Values
                 # Download predictions
                 st.markdown("### Download Results")
                 st.markdown(get_download_link(results, "wqi_predictions.csv", 
-                                           "Download Predictions CSV"), unsafe_allow_html=True)
+                                            "Download Predictions CSV"), unsafe_allow_html=True)
                 
                 # Download joined data with predictions
                 full_results = pd.concat([new_data.reset_index(drop=True), 
-                                         results.drop('Original WQI', errors='ignore')], axis=1)
+                                        results.drop('Original WQI', errors='ignore')], axis=1)
                 st.markdown(get_download_link(full_results, "full_predictions_with_data.csv", 
-                                           "Download Full Results (Original Data + Predictions)"), unsafe_allow_html=True)
+                                            "Download Full Results (Original Data + Predictions)"), unsafe_allow_html=True)
 
 # Add footer
 st.sidebar.markdown("---")
