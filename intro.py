@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 import os
 import io
 import base64
+import requests
 
 # Set page configuration
 st.set_page_config(
@@ -45,6 +46,26 @@ st.markdown("<h1 class='main-header'>Water Quality Index (WQI) Prediction</h1>",
 st.markdown("---")
 
 # Functions
+@st.cache_data
+def load_data_from_github(url):
+    """
+    Load data from a GitHub repository URL
+    """
+    try:
+        # Convert GitHub page URL to raw content URL if needed
+        if "github.com" in url and "blob" in url:
+            raw_url = url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/")
+        else:
+            raw_url = url
+            
+        # Fetch data
+        data = pd.read_csv(raw_url)
+        return data
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        st.error("Make sure your URL points to a raw CSV file or valid GitHub CSV file path")
+        return None
+
 @st.cache_data
 def preprocess_data(data):
     """
@@ -254,6 +275,39 @@ st.sidebar.image("https://www.epa.gov/sites/default/files/2016-03/epa_seal_verys
 st.sidebar.title("WQI Prediction Tools")
 st.sidebar.markdown("---")
 
+# Data source input
+st.sidebar.subheader("Data Source")
+data_source = st.sidebar.radio("Select data source", ["GitHub URL", "Sample Data"])
+
+if data_source == "GitHub URL":
+    default_url = "https://raw.githubusercontent.com/nishifwd/machine-learning/main/Dataset.csv"
+    data_url = st.sidebar.text_input("Enter GitHub URL", value=default_url)
+    
+    # Load data button
+    if st.sidebar.button("Load Data", type="primary"):
+        data = load_data_from_github(data_url)
+        if data is not None:
+            st.session_state.data = data
+            st.sidebar.success(f"Data loaded successfully: {data.shape[0]} rows")
+else:  # Sample data
+    st.sidebar.info("Using built-in sample data")
+    # Create sample data or load from a local file
+    # This is just an example, adjust according to your data structure
+    sample_data = pd.DataFrame({
+        'DO': np.random.uniform(4, 9, 100),
+        'pH': np.random.uniform(6.5, 8.5, 100),
+        'BOD': np.random.uniform(1, 10, 100),
+        'Nitrate': np.random.uniform(0, 20, 100),
+        'Fecal Coliform': np.random.uniform(0, 500, 100),
+        'Turbidity': np.random.uniform(0, 50, 100),
+        'Temperature': np.random.uniform(15, 30, 100),
+        'WQI Value': np.random.uniform(20, 100, 100)
+    })
+    
+    if st.sidebar.button("Use Sample Data", type="primary"):
+        st.session_state.data = sample_data
+        st.sidebar.success("Sample data loaded successfully")
+
 # Load models
 models, model_messages = load_models()
 
@@ -267,237 +321,233 @@ with st.sidebar.expander("Model Loading Status", expanded=False):
         st.write(msg)
 
 # Sidebar navigation
-page = st.sidebar.radio("Select Mode", ["Test on Uploaded Data", "Predict New WQI Values"])
+page = st.sidebar.radio("Select Mode", ["Test on Loaded Data", "Predict New WQI Values"])
+
+# Check if data is loaded
+if "data" not in st.session_state:
+    st.info("Please load data using the sidebar options")
+    st.stop()
 
 # Main content based on page selection
-if page == "Test on Uploaded Data":
+if page == "Test on Loaded Data":
     st.markdown("<h2 class='sub-header'>Test Models on Your Data</h2>", unsafe_allow_html=True)
     
-        # GitHub URL for the dataset (change this to your raw GitHub dataset URL)
-        github_url = 'https://github.com/nishifwd/machine-learning/blob/main/Dataset.csv'
+    data = st.session_state.data
+    st.success(f"Dataset loaded with {data.shape[0]} rows and {data.shape[1]} columns")
     
-        # Load dataset from GitHub
-        data = load_data_from_github(github_url)
-        st.success(f"Dataset loaded with {new_data.shape[0]} rows and {new_data.shape[1]} columns")
+    # Display raw data sample
+    with st.expander("Preview Raw Data", expanded=False):
+        st.dataframe(data.head(), use_container_width=True)
+    
+    # Check if WQI Value column exists
+    if 'WQI Value' not in data.columns:
+        st.error("The dataset must contain a 'WQI Value' column to evaluate model performance.")
+        st.stop()
+    
+    # Preprocess data
+    with st.spinner("Preprocessing data..."):
+        df, preprocess_msg = preprocess_data(data)
         
-        # Display raw data sample
-        with st.expander("Preview Raw Data", expanded=False):
-            st.dataframe(data.head(), use_container_width=True)
-        
-        # Check if WQI Value column exists
-        if 'WQI Value' not in data.columns:
-            st.error("The dataset must contain a 'WQI Value' column to evaluate model performance.")
-            st.stop()
-        
-        # Preprocess data
-        with st.spinner("Preprocessing data..."):
-            df, preprocess_msg = preprocess_data(data)
-            
-        if df is None:
-            st.error(preprocess_msg)
-            st.stop()
+    if df is None:
+        st.error(preprocess_msg)
+        st.stop()
+    else:
+        st.info(preprocess_msg)
+    
+    # Display preprocessed data sample
+    with st.expander("Preview Preprocessed Data", expanded=False):
+        st.dataframe(df.head(), use_container_width=True)
+    
+    # Define X and y
+    X = df.drop(columns=['WQI Value'])
+    y = df['WQI Value']
+    
+    # Test set size slider
+    test_size = st.slider("Select test set size (%)", min_value=10, max_value=50, value=20, step=5) / 100
+    
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+    
+    st.info(f"Data split into training ({len(X_train)} samples) and testing ({len(X_test)} samples) sets")
+    
+    # Select models to test
+    selected_models = st.multiselect("Select models to test (default: all)", 
+                                    options=list(models.keys()),
+                                    default=list(models.keys()))
+    
+    # Run test button
+    if st.button("Run Tests", type="primary"):
+        if not selected_models:
+            st.warning("Please select at least one model to test")
         else:
-            st.info(preprocess_msg)
-        
-        # Display preprocessed data sample
-        with st.expander("Preview Preprocessed Data", expanded=False):
-            st.dataframe(df.head(), use_container_width=True)
-        
-        # Define X and y
-        X = df.drop(columns=['WQI Value'])
-        y = df['WQI Value']
-        
-        # Test set size slider
-        test_size = st.slider("Select test set size (%)", min_value=10, max_value=50, value=20, step=5) / 100
-        
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
-        
-        st.info(f"Data split into training ({len(X_train)} samples) and testing ({len(X_test)} samples) sets")
-        
-        # Select models to test
-        selected_models = st.multiselect("Select models to test (default: all)", 
-                                        options=list(models.keys()),
-                                        default=list(models.keys()))
-        
-        # Run test button
-        if st.button("Run Tests", type="primary"):
-            if not selected_models:
-                st.warning("Please select at least one model to test")
-            else:
-                filtered_models = {name: model for name, model in models.items() if name in selected_models}
+            filtered_models = {name: model for name, model in models.items() if name in selected_models}
+            
+            with st.spinner("Testing models..."):
+                # Test models
+                results = test_models(filtered_models, X_test, y_test)
                 
-                with st.spinner("Testing models..."):
-                    # Test models
-                    results = test_models(filtered_models, X_test, y_test)
-                    
-                    # Get predictions
-                    test_predictions = {name: results[name]['predictions'] for name in results}
-                    
-                    # Compare predictions
-                    test_comparison_df = compare_predictions(y_test, test_predictions)
-                    
-                # Display results
-                metrics_df, best_model, plot_data = visualize_results(results, test_comparison_df)
+                # Get predictions
+                test_predictions = {name: results[name]['predictions'] for name in results}
                 
-                # Display sample predictions
-                st.markdown("<h3 class='sub-header'>Sample Predictions</h3>", unsafe_allow_html=True)
-                st.dataframe(test_comparison_df.head(10), use_container_width=True)
+                # Compare predictions
+                test_comparison_df = compare_predictions(y_test, test_predictions)
                 
-                # Best model summary
-                st.markdown(f"""
-                <div class='metric-card'>
-                    <h3>Best Performing Model: {best_model}</h3>
-                    <p>R² Score: {metrics_df.loc[metrics_df['Model'] == best_model, 'R²'].values[0]:.4f}</p>
-                    <p>RMSE: {metrics_df.loc[metrics_df['Model'] == best_model, 'RMSE'].values[0]:.4f}</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Download options
-                st.markdown("### Download Results")
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.markdown(get_download_link(test_comparison_df, "test_predictions.csv", 
-                                                "Download Predictions CSV"), unsafe_allow_html=True)
-                
-                with col2:
-                    st.markdown(get_download_link(metrics_df, "model_metrics.csv", 
-                                                "Download Metrics CSV"), unsafe_allow_html=True)
-                
-                # Download plot
-                st.markdown(f"""
-                <a href="data:image/png;base64,{plot_data}" download="model_comparison_plot.png">
-                📥 Download Performance Plot
-                </a>
-                """, unsafe_allow_html=True)
+            # Display results
+            metrics_df, best_model, plot_data = visualize_results(results, test_comparison_df)
+            
+            # Display sample predictions
+            st.markdown("<h3 class='sub-header'>Sample Predictions</h3>", unsafe_allow_html=True)
+            st.dataframe(test_comparison_df.head(10), use_container_width=True)
+            
+            # Best model summary
+            st.markdown(f"""
+            <div class='metric-card'>
+                <h3>Best Performing Model: {best_model}</h3>
+                <p>R² Score: {metrics_df.loc[metrics_df['Model'] == best_model, 'R²'].values[0]:.4f}</p>
+                <p>RMSE: {metrics_df.loc[metrics_df['Model'] == best_model, 'RMSE'].values[0]:.4f}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Download options
+            st.markdown("### Download Results")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown(get_download_link(test_comparison_df, "test_predictions.csv", 
+                                            "Download Predictions CSV"), unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(get_download_link(metrics_df, "model_metrics.csv", 
+                                            "Download Metrics CSV"), unsafe_allow_html=True)
+            
+            # Download plot
+            st.markdown(f"""
+            <a href="data:image/png;base64,{plot_data}" download="model_comparison_plot.png">
+            📥 Download Performance Plot
+            </a>
+            """, unsafe_allow_html=True)
 
 else:  # Predict New WQI Values
     st.markdown("<h2 class='sub-header'>Predict WQI Values for New Data</h2>", unsafe_allow_html=True)
     
+    new_data = st.session_state.data
+    st.success(f"Dataset loaded with {new_data.shape[0]} rows and {new_data.shape[1]} columns")
     
-        # GitHub URL for the dataset (change this to your raw GitHub dataset URL)
-        github_url = 'https://github.com/nishifwd/machine-learning/blob/main/Dataset.csv'
+    # Display raw data sample
+    with st.expander("Preview Raw Data", expanded=False):
+        st.dataframe(new_data.head(), use_container_width=True)
     
-        # Load dataset from GitHub
-        data = load_data_from_github(github_url)
-        st.success(f"Dataset loaded with {new_data.shape[0]} rows and {new_data.shape[1]} columns")
+    # Check if WQI Value column exists
+    has_wqi = 'WQI Value' in new_data.columns
+    
+    if has_wqi:
+        st.info("The dataset contains a 'WQI Value' column. We'll compare predictions with actual values.")
+    else:
+        st.info("The dataset does not contain a 'WQI Value' column. We'll only generate predictions.")
+    
+    # Preprocess data
+    with st.spinner("Preprocessing data..."):
+        processed_data, preprocess_msg = preprocess_data(new_data)
         
-        # Display raw data sample
-        with st.expander("Preview Raw Data", expanded=False):
-            st.dataframe(new_data.head(), use_container_width=True)
-        
-        # Check if WQI Value column exists
-        has_wqi = 'WQI Value' in new_data.columns
-        
-        if has_wqi:
-            st.info("The dataset contains a 'WQI Value' column. We'll compare predictions with actual values.")
+    if processed_data is None:
+        st.error(preprocess_msg)
+        st.stop()
+    else:
+        st.info(preprocess_msg)
+    
+    # Display preprocessed data sample
+    with st.expander("Preview Preprocessed Data", expanded=False):
+        st.dataframe(processed_data.head(), use_container_width=True)
+    
+    # Prepare features
+    if has_wqi:
+        X_new = processed_data.drop(columns=['WQI Value'])
+        y_new = processed_data['WQI Value']
+    else:
+        X_new = processed_data
+    
+    # Select models to use
+    selected_models = st.multiselect("Select models for prediction (default: all)", 
+                                    options=list(models.keys()),
+                                    default=list(models.keys()))
+    
+    # Make predictions button
+    if st.button("Generate Predictions", type="primary"):
+        if not selected_models:
+            st.warning("Please select at least one model for prediction")
         else:
-            st.info("The dataset does not contain a 'WQI Value' column. We'll only generate predictions.")
-        
-        # Preprocess data
-        with st.spinner("Preprocessing data..."):
-            processed_data, preprocess_msg = preprocess_data(new_data)
-            
-        if processed_data is None:
-            st.error(preprocess_msg)
-            st.stop()
-        else:
-            st.info(preprocess_msg)
-        
-        # Display preprocessed data sample
-        with st.expander("Preview Preprocessed Data", expanded=False):
-            st.dataframe(processed_data.head(), use_container_width=True)
-        
-        # Prepare features
-        if has_wqi:
-            X_new = processed_data.drop(columns=['WQI Value'])
-            y_new = processed_data['WQI Value']
-        else:
-            X_new = processed_data
-        
-        # Select models to use
-        selected_models = st.multiselect("Select models for prediction (default: all)", 
-                                        options=list(models.keys()),
-                                        default=list(models.keys()))
-        
-        # Make predictions button
-        if st.button("Generate Predictions", type="primary"):
-            if not selected_models:
-                st.warning("Please select at least one model for prediction")
-            else:
-                with st.spinner("Generating predictions..."):
-                    # Make predictions
-                    predictions = predict_wqi(models, X_new, selected_models)
-                    
-                    # Create results DataFrame
-                    results = pd.DataFrame()
+            with st.spinner("Generating predictions..."):
+                # Make predictions
+                predictions = predict_wqi(models, X_new, selected_models)
+                
+                # Create results DataFrame
+                results = pd.DataFrame()
+                
+                if has_wqi:
+                    results['Original WQI'] = y_new.reset_index(drop=True)
+                
+                for name, preds in predictions.items():
+                    results[f'{name} Prediction'] = preds
                     
                     if has_wqi:
-                        results['Original WQI'] = y_new.reset_index(drop=True)
-                    
-                    for name, preds in predictions.items():
-                        results[f'{name} Prediction'] = preds
-                        
-                        if has_wqi:
-                            results[f'{name} Error'] = abs(results['Original WQI'] - preds)
-                    
-                # Display predictions table
-                st.markdown("<h3 class='sub-header'>Predictions</h3>", unsafe_allow_html=True)
-                st.dataframe(results.head(20), use_container_width=True)
+                        results[f'{name} Error'] = abs(results['Original WQI'] - preds)
                 
-                # If we have original WQI values, display metrics
-                if has_wqi:
-                    metrics = []
-                    for name, preds in predictions.items():
-                        mse = mean_squared_error(y_new, preds)
-                        r2 = r2_score(y_new, preds)
-                        rmse = np.sqrt(mse)
-                        metrics.append({
-                            'Model': name,
-                            'MSE': mse,
-                            'R²': r2,
-                            'RMSE': rmse
-                        })
-                    
-                    metrics_df = pd.DataFrame(metrics).sort_values('R²', ascending=False)
-                    best_model = metrics_df.iloc[0]['Model']
-                    
-                    # Display metrics
-                    st.markdown("<h3 class='sub-header'>Performance Metrics</h3>", unsafe_allow_html=True)
-                    st.dataframe(metrics_df.style.highlight_max(subset=['R²']).highlight_min(subset=['MSE', 'RMSE']), 
-                                use_container_width=True)
-                    
-                    # Create visualization
-                    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-                    
-                    # Scatter plot for best model
-                    axes[0].scatter(results['Original WQI'], results[f'{best_model} Prediction'], alpha=0.5, color='blue')
-                    min_val = min(results['Original WQI'].min(), results[f'{best_model} Prediction'].min())
-                    max_val = max(results['Original WQI'].max(), results[f'{best_model} Prediction'].max())
-                    axes[0].plot([min_val, max_val], [min_val, max_val], 'r--')
-                    axes[0].set_title(f'Best Model ({best_model}): Predicted vs Actual')
-                    axes[0].set_xlabel('Actual WQI')
-                    axes[0].set_ylabel('Predicted WQI')
-                    
-                    # Error distribution
-                    sns.histplot(results[f'{best_model} Error'], kde=True, ax=axes[1], color='green')
-                    axes[1].set_title(f'Error Distribution for {best_model}')
-                    axes[1].set_xlabel('Absolute Error')
-                    
-                    plt.tight_layout()
-                    st.pyplot(fig)
+            # Display predictions table
+            st.markdown("<h3 class='sub-header'>Predictions</h3>", unsafe_allow_html=True)
+            st.dataframe(results.head(20), use_container_width=True)
+            
+            # If we have original WQI values, display metrics
+            if has_wqi:
+                metrics = []
+                for name, preds in predictions.items():
+                    mse = mean_squared_error(y_new, preds)
+                    r2 = r2_score(y_new, preds)
+                    rmse = np.sqrt(mse)
+                    metrics.append({
+                        'Model': name,
+                        'MSE': mse,
+                        'R²': r2,
+                        'RMSE': rmse
+                    })
                 
-                # Download predictions
-                st.markdown("### Download Results")
-                st.markdown(get_download_link(results, "wqi_predictions.csv", 
-                                            "Download Predictions CSV"), unsafe_allow_html=True)
+                metrics_df = pd.DataFrame(metrics).sort_values('R²', ascending=False)
+                best_model = metrics_df.iloc[0]['Model']
                 
-                # Download joined data with predictions
-                full_results = pd.concat([new_data.reset_index(drop=True), 
-                                        results.drop('Original WQI', errors='ignore')], axis=1)
-                st.markdown(get_download_link(full_results, "full_predictions_with_data.csv", 
-                                            "Download Full Results (Original Data + Predictions)"), unsafe_allow_html=True)
+                # Display metrics
+                st.markdown("<h3 class='sub-header'>Performance Metrics</h3>", unsafe_allow_html=True)
+                st.dataframe(metrics_df.style.highlight_max(subset=['R²']).highlight_min(subset=['MSE', 'RMSE']), 
+                            use_container_width=True)
+                
+                # Create visualization
+                fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+                
+                # Scatter plot for best model
+                axes[0].scatter(results['Original WQI'], results[f'{best_model} Prediction'], alpha=0.5, color='blue')
+                min_val = min(results['Original WQI'].min(), results[f'{best_model} Prediction'].min())
+                max_val = max(results['Original WQI'].max(), results[f'{best_model} Prediction'].max())
+                axes[0].plot([min_val, max_val], [min_val, max_val], 'r--')
+                axes[0].set_title(f'Best Model ({best_model}): Predicted vs Actual')
+                axes[0].set_xlabel('Actual WQI')
+                axes[0].set_ylabel('Predicted WQI')
+                
+                # Error distribution
+                sns.histplot(results[f'{best_model} Error'], kde=True, ax=axes[1], color='green')
+                axes[1].set_title(f'Error Distribution for {best_model}')
+                axes[1].set_xlabel('Absolute Error')
+                
+                plt.tight_layout()
+                st.pyplot(fig)
+            
+            # Download predictions
+            st.markdown("### Download Results")
+            st.markdown(get_download_link(results, "wqi_predictions.csv", 
+                                        "Download Predictions CSV"), unsafe_allow_html=True)
+            
+            # Download joined data with predictions
+            full_results = pd.concat([new_data.reset_index(drop=True), 
+                                    results.drop('Original WQI', errors='ignore')], axis=1)
+            st.markdown(get_download_link(full_results, "full_predictions_with_data.csv", 
+                                        "Download Full Results (Original Data + Predictions)"), unsafe_allow_html=True)
 
 # Add footer
 st.sidebar.markdown("---")
