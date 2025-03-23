@@ -236,9 +236,16 @@ else:
     X_new = processed_data
 
 # Select models to use
-selected_models = st.multiselect("Select models for prediction (default: all)", 
-                                options=list(models.keys()),
-                                default=list(models.keys()))
+st.write("### Select models for prediction")
+selected_models = []
+
+# Use checkboxes for each model
+for model_name in models.keys():
+    if st.checkbox(model_name, value=True):  # Default checked
+        selected_models.append(model_name)
+
+st.write("### Selected Models:")
+st.write(selected_models)
 
 # Make predictions button
 if st.button("Generate Predictions", type="primary"):
