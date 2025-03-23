@@ -3,4 +3,9 @@ pandas
 joblib
 matplotlib
 scikit-learn
-xgboost
+numpy
+seaborn
+joblib
+os
+io
+base64
