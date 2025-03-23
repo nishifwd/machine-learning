@@ -271,7 +271,7 @@ def get_download_link(df, filename, text):
     return href
 
 # Sidebar
-st.sidebar.image("https://www.epa.gov/sites/default/files/2016-03/epa_seal_verysmall_trim.gif", width=100)
+st.sidebar.image("https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzhkdmpvcWswcHVwMnlrM25pYnIxaDZsMmpiYmxrYXBwbGk1M3BwNCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Jt5kX3vh7JKeVGpidQ/giphy.gif", width=100)
 st.sidebar.title("WQI Prediction Tools")
 st.sidebar.markdown("---")
 
