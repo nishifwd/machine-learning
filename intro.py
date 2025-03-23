@@ -180,7 +180,7 @@ data, message = auto_load_data()
 
 if data is not None:
     st.session_state.data = data
-    st.sidebar.success(f"Dataset automatically loaded: {message}")
+    st.sidebar.success(f"Dataset Load Sucessfully")
 else:
     st.sidebar.error(message)
 
