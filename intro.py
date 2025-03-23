@@ -213,11 +213,6 @@ with st.expander("Preview Raw Data", expanded=False):
 # Check if WQI Value column exists
 has_wqi = 'WQI Value' in new_data.columns
 
-if has_wqi:
-    st.info("The dataset contains a 'WQI Value' column. We'll compare predictions with actual values.")
-else:
-    st.info("The dataset does not contain a 'WQI Value' column. We'll only generate predictions.")
-
 # Preprocess data
 with st.spinner("Preprocessing data..."):
     processed_data, preprocess_msg = preprocess_data(new_data)
