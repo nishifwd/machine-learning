@@ -10,7 +10,6 @@ from sklearn.model_selection import train_test_split
 import os
 import io
 import base64
-import requests
 
 # Set page configuration
 st.set_page_config(
@@ -47,24 +46,26 @@ st.markdown("---")
 
 # Functions
 @st.cache_data
-def load_data_from_github(url):
+def load_data_from_local(file_path):
     """
-    Load data from a GitHub repository URL
+    Load data from a local file path
     """
     try:
-        # Convert GitHub page URL to raw content URL if needed
-        if "github.com" in url and "blob" in url:
-            raw_url = url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/")
-        else:
-            raw_url = url
+        # Check if file exists
+        if not os.path.isfile(file_path):
+            return None, f"Error: File not found at {file_path}"
             
-        # Fetch data
-        data = pd.read_csv(raw_url)
-        return data
+        # Determine file type and load accordingly
+        if file_path.endswith('.csv'):
+            data = pd.read_csv(file_path)
+        elif file_path.endswith('.xlsx') or file_path.endswith('.xls'):
+            data = pd.read_excel(file_path)
+        else:
+            return None, "Error: File must be CSV or Excel format"
+            
+        return data, f"Successfully loaded {data.shape[0]} rows from {file_path}"
     except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        st.error("Make sure your URL points to a raw CSV file or valid GitHub CSV file path")
-        return None
+        return None, f"Error loading data: {str(e)}"
 
 @st.cache_data
 def preprocess_data(data):
@@ -275,38 +276,18 @@ st.sidebar.image("https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzhkdmpvcWsw
 st.sidebar.title("WQI Prediction Tools")
 st.sidebar.markdown("---")
 
-# Data source input
+# Data source input - Local file path only
 st.sidebar.subheader("Data Source")
-data_source = st.sidebar.radio("Select data source", ["GitHub URL", "Sample Data"])
+data_path = st.sidebar.text_input("Enter local dataset path", "data/Dataset.csv")
 
-if data_source == "GitHub URL":
-    default_url = "https://raw.githubusercontent.com/nishifwd/machine-learning/main/Dataset.csv"
-    data_url = st.sidebar.text_input("Enter GitHub URL", value=default_url)
-    
-    # Load data button
-    if st.sidebar.button("Load Data", type="primary"):
-        data = load_data_from_github(data_url)
-        if data is not None:
-            st.session_state.data = data
-            st.sidebar.success(f"Data loaded successfully: {data.shape[0]} rows")
-else:  # Sample data
-    st.sidebar.info("Using built-in sample data")
-    # Create sample data or load from a local file
-    # This is just an example, adjust according to your data structure
-    sample_data = pd.DataFrame({
-        'DO': np.random.uniform(4, 9, 100),
-        'pH': np.random.uniform(6.5, 8.5, 100),
-        'BOD': np.random.uniform(1, 10, 100),
-        'Nitrate': np.random.uniform(0, 20, 100),
-        'Fecal Coliform': np.random.uniform(0, 500, 100),
-        'Turbidity': np.random.uniform(0, 50, 100),
-        'Temperature': np.random.uniform(15, 30, 100),
-        'WQI Value': np.random.uniform(20, 100, 100)
-    })
-    
-    if st.sidebar.button("Use Sample Data", type="primary"):
-        st.session_state.data = sample_data
-        st.sidebar.success("Sample data loaded successfully")
+# Load data button
+if st.sidebar.button("Load Data", type="primary"):
+    data, message = load_data_from_local(data_path)
+    if data is not None:
+        st.session_state.data = data
+        st.sidebar.success(message)
+    else:
+        st.sidebar.error(message)
 
 # Load models
 models, model_messages = load_models()
@@ -325,7 +306,7 @@ page = st.sidebar.radio("Select Mode", ["Test on Loaded Data", "Predict New WQI 
 
 # Check if data is loaded
 if "data" not in st.session_state:
-    st.info("Please load data using the sidebar options")
+    st.info("Please load data by entering a local file path in the sidebar")
     st.stop()
 
 # Main content based on page selection
