@@ -99,7 +99,7 @@ def preprocess_data(data):
         features_to_scale = df.columns[df.columns != 'WQI Value']
         df[features_to_scale] = scaler.fit_transform(df[features_to_scale])
         
-        return df, f"Data preprocessing completed. Rows after outlier removal: {df.shape[0]}"
+        return df, f"Data preprocessing completed."
     except Exception as e:
         return None, f"Error in preprocessing: {str(e)}"
 
