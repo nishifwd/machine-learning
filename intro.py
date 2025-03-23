@@ -278,7 +278,7 @@ st.sidebar.markdown("---")
 
 # Data source input - Local file path only
 st.sidebar.subheader("Data Source")
-data_path = st.sidebar.text_input("Enter local dataset path", "data/Dataset.csv")
+data_path = st.sidebar.text_input("Enter local dataset path", "Dataset.csv")
 
 # Load data button
 if st.sidebar.button("Load Data", type="primary"):
