@@ -532,4 +532,4 @@ else:  # Predict New WQI Values
 
 # Add footer
 st.sidebar.markdown("---")
-st.sidebar.info("💧 WQI Prediction App • Built with Streamlit")
+st.sidebar.info("💧 WQI Prediction App • Made from Danish")
