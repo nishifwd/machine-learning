@@ -205,7 +205,6 @@ if "data" not in st.session_state or st.session_state.data is None:
 st.markdown("<h2 class='sub-header'>Predict WQI Values</h2>", unsafe_allow_html=True)
 
 new_data = st.session_state.data
-st.success(f"Dataset loaded with {new_data.shape[0]} rows and {new_data.shape[1]} columns")
 
 # Display raw data sample
 with st.expander("Preview Raw Data", expanded=False):
