@@ -166,18 +166,23 @@ st.sidebar.image("https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzhkdmpvcWsw
 st.sidebar.title("WQI Prediction Tools")
 st.sidebar.markdown("---")
 
-# Data source input - Local file path only
-st.sidebar.subheader("Data Source")
-data_path = st.sidebar.text_input("Enter local dataset path", "Dataset.csv")
+# Define default dataset path
+DEFAULT_DATASET_PATH = "Dataset.csv"
 
-# Load data button
-if st.sidebar.button("Load Data", type="primary"):
-    data, message = load_data_from_local(data_path)
-    if data is not None:
-        st.session_state.data = data
-        st.sidebar.success(message)
-    else:
-        st.sidebar.error(message)
+# Auto-load data when app starts
+@st.cache_data
+def auto_load_data():
+    data, message = load_data_from_local(DEFAULT_DATASET_PATH)
+    return data, message
+
+# Load data automatically
+data, message = auto_load_data()
+
+if data is not None:
+    st.session_state.data = data
+    st.sidebar.success(f"Dataset automatically loaded: {message}")
+else:
+    st.sidebar.error(message)
 
 # Load models
 models, model_messages = load_models()
@@ -192,8 +197,8 @@ with st.sidebar.expander("Model Loading Status", expanded=False):
         st.write(msg)
 
 # Check if data is loaded
-if "data" not in st.session_state:
-    st.info("Please load data by entering a local file path in the sidebar")
+if "data" not in st.session_state or st.session_state.data is None:
+    st.error(f"Could not load the dataset from {DEFAULT_DATASET_PATH}. Please make sure the file exists and is accessible.")
     st.stop()
 
 # Main content - Only the Predict New WQI Values functionality
