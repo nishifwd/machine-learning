@@ -278,6 +278,7 @@ if page == "Test on Uploaded Data":
     
         # Load dataset from GitHub
         data = load_data_from_github(github_url)
+        st.success(f"Dataset loaded with {new_data.shape[0]} rows and {new_data.shape[1]} columns")
         
         # Display raw data sample
         with st.expander("Preview Raw Data", expanded=False):
@@ -374,12 +375,12 @@ if page == "Test on Uploaded Data":
 else:  # Predict New WQI Values
     st.markdown("<h2 class='sub-header'>Predict WQI Values for New Data</h2>", unsafe_allow_html=True)
     
-    # Upload new data
-    uploaded_file = st.file_uploader("Upload your new dataset (CSV file)", type="csv")
     
-    if uploaded_file is not None:
-        # Load data
-        new_data = pd.read_csv(uploaded_file)
+        # GitHub URL for the dataset (change this to your raw GitHub dataset URL)
+        github_url = 'https://github.com/nishifwd/machine-learning/blob/main/Dataset.csv'
+    
+        # Load dataset from GitHub
+        data = load_data_from_github(github_url)
         st.success(f"Dataset loaded with {new_data.shape[0]} rows and {new_data.shape[1]} columns")
         
         # Display raw data sample
