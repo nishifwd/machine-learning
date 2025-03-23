@@ -244,9 +244,6 @@ for model_name in models.keys():
     if st.checkbox(model_name, value=True):  # Default checked
         selected_models.append(model_name)
 
-st.write("### Selected Models:")
-st.write(selected_models)
-
 # Make predictions button
 if st.button("Generate Predictions", type="primary"):
     if not selected_models:
