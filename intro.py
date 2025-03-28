@@ -39,10 +39,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Header
-st.markdown("<h1 class='main-header'>Water Quality Index (WQI) Prediction</h1>", unsafe_allow_html=True)
-st.markdown("---")
-
 # Functions
 @st.cache_data
 def load_data_from_local(file_path):
@@ -161,166 +157,255 @@ def get_download_link(df, filename, text):
     href = f'<a href="data:file/csv;base64,{b64}" download="{filename}">📥 {text}</a>'
     return href
 
-# Sidebar
-st.sidebar.image("https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzhkdmpvcWswcHVwMnlrM25pYnIxaDZsMmpiYmxrYXBwbGk1M3BwNCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Jt5kX3vh7JKeVGpidQ/giphy.gif", width=100)
-st.sidebar.title("WQI Prediction Tools")
-st.sidebar.markdown("---")
-
-# Define default dataset path
-DEFAULT_DATASET_PATH = "Dataset.csv"
-
-# Auto-load data when app starts
-@st.cache_data
-def auto_load_data():
-    data, message = load_data_from_local(DEFAULT_DATASET_PATH)
-    return data, message
-
-# Load data automatically
-data, message = auto_load_data()
-
-if data is not None:
-    st.session_state.data = data
-    st.sidebar.success(f"Dataset Load Sucessfully")
-else:
-    st.sidebar.error(message)
-
-# Load models
-models, model_messages = load_models()
-
-if not models:
-    st.error("No models found. Make sure model files (.pkl) are in the 'models' directory.")
-    st.stop()
-
-# Show model loading status
-with st.sidebar.expander("Model Loading Status", expanded=False):
-    for msg in model_messages:
-        st.write(msg)
-
-# Check if data is loaded
-if "data" not in st.session_state or st.session_state.data is None:
-    st.error(f"Could not load the dataset from {DEFAULT_DATASET_PATH}. Please make sure the file exists and is accessible.")
-    st.stop()
-
-# Main content - Only the Predict New WQI Values functionality
-st.markdown("<h2 class='sub-header'>Predict WQI Values</h2>", unsafe_allow_html=True)
-
-new_data = st.session_state.data
-
-# Display raw data sample
-with st.expander("Preview Raw Data", expanded=False):
-    st.dataframe(new_data.head(), use_container_width=True)
-
-# Check if WQI Value column exists
-has_wqi = 'WQI Value' in new_data.columns
-
-# Preprocess data
-with st.spinner("Preprocessing data..."):
-    processed_data, preprocess_msg = preprocess_data(new_data)
+def manual_input_tab(models):
+    """
+    Create a tab for manual water quality parameter input
+    """
+    st.markdown("<h2 class='sub-header'>Manual WQI Parameter Input</h2>", unsafe_allow_html=True)
     
-if processed_data is None:
-    st.error(preprocess_msg)
-    st.stop()
-else:
-    st.info(preprocess_msg)
-
-# Display preprocessed data sample
-with st.expander("Preview Preprocessed Data", expanded=False):
-    st.dataframe(processed_data.head(), use_container_width=True)
-
-# Prepare features
-if has_wqi:
-    X_new = processed_data.drop(columns=['WQI Value'])
-    y_new = processed_data['WQI Value']
-else:
-    X_new = processed_data
-
-# Select models to use
-st.write("### Select models for prediction")
-selected_models = []
-
-# Use checkboxes for each model
-for model_name in models.keys():
-    if st.checkbox(model_name, value=True):  # Default checked
-        selected_models.append(model_name)
-
-# Make predictions button
-if st.button("Generate Predictions", type="primary"):
-    if not selected_models:
-        st.warning("Please select at least one model for prediction")
-    else:
+    # Define the columns to input
+    columns_to_input = [
+        'Alkalinity-total (as CaCO3)',
+        'Ammonia-Total (as N)',
+        'BOD - 5 days (Total)',
+        'Chloride',
+        'Conductivity @25°C',
+        'Dissolved Oxygen',
+        'ortho-Phosphate (as P) - unspecified',
+        'pH',
+        'Temperature',
+        'Total Hardness (as CaCO3)',
+        'True Colour'
+    ]
+    
+    # Create input columns for better layout
+    cols = st.columns(2)
+    
+    # Prepare a dictionary to store input values
+    input_data = {}
+    
+    # Create input fields
+    for i, column in enumerate(columns_to_input):
+        col_index = i % 2  # Alternate between first and second column
+        with cols[col_index]:
+            # Add input field with appropriate type and help text
+            if column == 'pH':
+                input_data[column] = st.number_input(
+                    column, 
+                    min_value=0.0, 
+                    max_value=14.0, 
+                    value=7.0, 
+                    step=0.1, 
+                    help="pH ranges from 0 (acidic) to 14 (alkaline), with 7 being neutral"
+                )
+            else:
+                input_data[column] = st.number_input(
+                    column, 
+                    min_value=0.0, 
+                    value=0.0, 
+                    step=0.1, 
+                    help=f"Enter the value for {column}"
+                )
+    
+    # Prediction button
+    if st.button("Predict WQI from Manual Input", type="primary"):
+        # Convert input to DataFrame
+        input_df = pd.DataFrame([input_data])
+        
+        # Preprocess the input data (use the same preprocessing as before)
+        with st.spinner("Preprocessing input data..."):
+            processed_input, preprocess_msg = preprocess_data(input_df)
+        
+        if processed_input is None:
+            st.error(preprocess_msg)
+            return
+        
+        # Make predictions
         with st.spinner("Generating predictions..."):
-            # Make predictions
-            predictions = predict_wqi(models, X_new, selected_models)
+            predictions = predict_wqi(models, processed_input)
             
-            # Create results DataFrame
-            results = pd.DataFrame()
+            # Display predictions
+            st.markdown("### Predictions")
+            pred_results = pd.DataFrame(predictions)
+            st.dataframe(pred_results, use_container_width=True)
             
-            if has_wqi:
-                results['Original WQI'] = y_new.reset_index(drop=True)
+            # Detailed view of input and predictions
+            combined_results = pd.concat([input_df, pred_results], axis=1)
             
-            for name, preds in predictions.items():
-                results[f'{name} Prediction'] = preds
+            # Download option
+            st.markdown("### Download Results")
+            st.markdown(get_download_link(combined_results, "manual_wqi_prediction.csv", 
+                                        "Download Prediction CSV"), unsafe_allow_html=True)
+
+def dataset_prediction_tab(data, models):
+    """
+    Create a tab for dataset-based WQI prediction
+    """
+    # Display raw data sample
+    with st.expander("Preview Raw Data", expanded=False):
+        st.dataframe(data.head(), use_container_width=True)
+
+    # Check if WQI Value column exists
+    has_wqi = 'WQI Value' in data.columns
+
+    # Preprocess data
+    with st.spinner("Preprocessing data..."):
+        processed_data, preprocess_msg = preprocess_data(data)
+    
+    if processed_data is None:
+        st.error(preprocess_msg)
+        return
+
+    # Display preprocessed data sample
+    with st.expander("Preview Preprocessed Data", expanded=False):
+        st.dataframe(processed_data.head(), use_container_width=True)
+
+    # Prepare features
+    if has_wqi:
+        X_new = processed_data.drop(columns=['WQI Value'])
+        y_new = processed_data['WQI Value']
+    else:
+        X_new = processed_data
+
+    # Select models to use
+    st.write("### Select models for prediction")
+    selected_models = []
+
+    # Use checkboxes for each model
+    for model_name in models.keys():
+        if st.checkbox(model_name, value=True):  # Default checked
+            selected_models.append(model_name)
+
+    # Make predictions button
+    if st.button("Generate Predictions", type="primary"):
+        if not selected_models:
+            st.warning("Please select at least one model for prediction")
+        else:
+            with st.spinner("Generating predictions..."):
+                # Make predictions
+                predictions = predict_wqi(models, X_new, selected_models)
+                
+                # Create results DataFrame
+                results = pd.DataFrame()
                 
                 if has_wqi:
-                    results[f'{name} Error'] = abs(results['Original WQI'] - preds)
+                    results['Original WQI'] = y_new.reset_index(drop=True)
+                
+                for name, preds in predictions.items():
+                    results[f'{name} Prediction'] = preds
+                    
+                    if has_wqi:
+                        results[f'{name} Error'] = abs(results['Original WQI'] - preds)
+                
+            # Display predictions table
+            st.markdown("<h3 class='sub-header'>Predictions</h3>", unsafe_allow_html=True)
+            st.dataframe(results.head(20), use_container_width=True)
             
-        # Display predictions table
-        st.markdown("<h3 class='sub-header'>Predictions</h3>", unsafe_allow_html=True)
-        st.dataframe(results.head(20), use_container_width=True)
-        
-        # If we have original WQI values, display metrics
-        if has_wqi:
-            metrics = []
-            for name, preds in predictions.items():
-                mse = mean_squared_error(y_new, preds)
-                r2 = r2_score(y_new, preds)
-                rmse = np.sqrt(mse)
-                metrics.append({
-                    'Model': name,
-                    'MSE': mse,
-                    'R²': r2,
-                    'RMSE': rmse
-                })
+            # If we have original WQI values, display metrics
+            if has_wqi:
+                metrics = []
+                for name, preds in predictions.items():
+                    mse = mean_squared_error(y_new, preds)
+                    r2 = r2_score(y_new, preds)
+                    rmse = np.sqrt(mse)
+                    metrics.append({
+                        'Model': name,
+                        'MSE': mse,
+                        'R²': r2,
+                        'RMSE': rmse
+                    })
+                
+                metrics_df = pd.DataFrame(metrics).sort_values('R²', ascending=False)
+                best_model = metrics_df.iloc[0]['Model']
+                
+                # Display metrics
+                st.markdown("<h3 class='sub-header'>Performance Metrics</h3>", unsafe_allow_html=True)
+                st.dataframe(metrics_df.style.highlight_max(subset=['R²']).highlight_min(subset=['MSE', 'RMSE']), 
+                            use_container_width=True)
+                
+                # Create visualization
+                fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+                
+                # Scatter plot for best model
+                axes[0].scatter(results['Original WQI'], results[f'{best_model} Prediction'], alpha=0.5, color='blue')
+                min_val = min(results['Original WQI'].min(), results[f'{best_model} Prediction'].min())
+                max_val = max(results['Original WQI'].max(), results[f'{best_model} Prediction'].max())
+                axes[0].plot([min_val, max_val], [min_val, max_val], 'r--')
+                axes[0].set_title(f'Best Model ({best_model}): Predicted vs Actual')
+                axes[0].set_xlabel('Actual WQI')
+                axes[0].set_ylabel('Predicted WQI')
+                
+                # Error distribution
+                sns.histplot(results[f'{best_model} Error'], kde=True, ax=axes[1], color='green')
+                axes[1].set_title(f'Error Distribution for {best_model}')
+                axes[1].set_xlabel('Absolute Error')
+                
+                plt.tight_layout()
+                st.pyplot(fig)
             
-            metrics_df = pd.DataFrame(metrics).sort_values('R²', ascending=False)
-            best_model = metrics_df.iloc[0]['Model']
+            # Download predictions
+            st.markdown("### Download Results")
+            st.markdown(get_download_link(results, "wqi_predictions.csv", 
+                                        "Download Predictions CSV"), unsafe_allow_html=True)
             
-            # Display metrics
-            st.markdown("<h3 class='sub-header'>Performance Metrics</h3>", unsafe_allow_html=True)
-            st.dataframe(metrics_df.style.highlight_max(subset=['R²']).highlight_min(subset=['MSE', 'RMSE']), 
-                        use_container_width=True)
-            
-            # Create visualization
-            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-            
-            # Scatter plot for best model
-            axes[0].scatter(results['Original WQI'], results[f'{best_model} Prediction'], alpha=0.5, color='blue')
-            min_val = min(results['Original WQI'].min(), results[f'{best_model} Prediction'].min())
-            max_val = max(results['Original WQI'].max(), results[f'{best_model} Prediction'].max())
-            axes[0].plot([min_val, max_val], [min_val, max_val], 'r--')
-            axes[0].set_title(f'Best Model ({best_model}): Predicted vs Actual')
-            axes[0].set_xlabel('Actual WQI')
-            axes[0].set_ylabel('Predicted WQI')
-            
-            # Error distribution
-            sns.histplot(results[f'{best_model} Error'], kde=True, ax=axes[1], color='green')
-            axes[1].set_title(f'Error Distribution for {best_model}')
-            axes[1].set_xlabel('Absolute Error')
-            
-            plt.tight_layout()
-            st.pyplot(fig)
-        
-        # Download predictions
-        st.markdown("### Download Results")
-        st.markdown(get_download_link(results, "wqi_predictions.csv", 
-                                    "Download Predictions CSV"), unsafe_allow_html=True)
-        
-        # Download joined data with predictions
-        full_results = pd.concat([new_data.reset_index(drop=True), 
-                                results.drop('Original WQI', errors='ignore')], axis=1)
-        st.markdown(get_download_link(full_results, "full_predictions_with_data.csv", 
-                                    "Download Full Results (Original Data + Predictions)"), unsafe_allow_html=True)
+            # Download joined data with predictions
+            full_results = pd.concat([data.reset_index(drop=True), 
+                                    results.drop('Original WQI', errors='ignore')], axis=1)
+            st.markdown(get_download_link(full_results, "full_predictions_with_data.csv", 
+                                        "Download Full Results (Original Data + Predictions)"), unsafe_allow_html=True)
 
-# Add footer
-st.sidebar.markdown("---")
-st.sidebar.info("💧 WQI Prediction App • Made from Danish")
+def main():
+    # Header
+    st.markdown("<h1 class='main-header'>Water Quality Index (WQI) Prediction</h1>", unsafe_allow_html=True)
+    st.markdown("---")
+
+    # Sidebar
+    st.sidebar.image("https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzhkdmpvcWswcHVwMnlrM25pYnIxaDZsMmpiYmxrYXBwbGk1M3BwNCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Jt5kX3vh7JKeVGpidQ/giphy.gif", width=100)
+    st.sidebar.title("WQI Prediction Tools")
+    st.sidebar.markdown("---")
+
+    # Define default dataset path
+    DEFAULT_DATASET_PATH = "Dataset.csv"
+
+    # Auto-load data when app starts
+    data, message = load_data_from_local(DEFAULT_DATASET_PATH)
+
+    if data is not None:
+        st.session_state.data = data
+        st.sidebar.success("Dataset Loaded Successfully")
+    else:
+        st.sidebar.error(message)
+
+    # Load models
+    models, model_messages = load_models()
+
+    if not models:
+        st.error("No models found. Make sure model files (.pkl) are in the 'models' directory.")
+        st.stop()
+
+    # Show model loading status
+    with st.sidebar.expander("Model Loading Status", expanded=False):
+        for msg in model_messages:
+            st.write(msg)
+
+    # Check if data is loaded
+    if "data" not in st.session_state or st.session_state.data is None:
+        st.error(f"Could not load the dataset from {DEFAULT_DATASET_PATH}. Please make sure the file exists and is accessible.")
+        st.stop()
+
+    # Create tabs
+    tab1, tab2 = st.tabs(["Predict from Dataset", "Manual Input"])
+    
+    with tab1:
+        dataset_prediction_tab(st.session_state.data, models)
+    
+    with tab2:
+        manual_input_tab(models)
+
+    # Add footer
+    st.sidebar.markdown("---")
+    st.sidebar.info("💧 WQI Prediction App • Made from Danish")
+
+# Run the main function
+if __name__ == "__main__":
+    main()
