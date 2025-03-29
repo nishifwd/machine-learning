@@ -79,23 +79,15 @@ def preprocess_data(data):
         df = data.copy()
         
         # Step 3: Remove outliers using IQR method
-        for col in data.select_dtypes(include=np.number):
-            if col == "WQI Value":  # Skip 'WQI Value'
-                continue
-
-            # Calculate the 25th and 75th percentiles (Q1 and Q3)
+        for col in [c for c in data.select_dtypes(include=np.number).columns if c != 'WQI Value']:
             percentile25 = df[col].quantile(0.25)
             percentile75 = df[col].quantile(0.75)
-
-            # Calculate the IQR
             iqr = percentile75 - percentile25
-
-            # Set the lower and upper bounds for outliers
             lower_limit = percentile25 - 1.5 * iqr
             upper_limit = percentile75 + 1.5 * iqr
-
-            # Remove outliers by filtering the DataFrame
-            df = df[(df[col] >= lower_limit) & (df[col] <= upper_limit)]
+            
+            # Instead of removing rows, cap the values
+            df[col] = df[col].clip(lower=lower_limit, upper=upper_limit)
         
         # Step 4: Normalize data using MinMaxScaler
         scaler = MinMaxScaler()
