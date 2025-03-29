@@ -80,6 +80,9 @@ def preprocess_data(data):
         
         # Step 3: Remove outliers using IQR method
         for col in data.select_dtypes(include=np.number):
+            if col == "WQI Value":  # Skip 'WQI Value'
+                continue
+
             # Calculate the 25th and 75th percentiles (Q1 and Q3)
             percentile25 = df[col].quantile(0.25)
             percentile75 = df[col].quantile(0.75)
