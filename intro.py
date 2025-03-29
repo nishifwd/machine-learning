@@ -104,7 +104,7 @@ def load_models():
     Load all saved models from the models directory
     """
     # Change path to models folder
-    models_dir = "models"
+    models_dir = "models2"
     
     # Check if models directory exists
     if not os.path.exists(models_dir):
